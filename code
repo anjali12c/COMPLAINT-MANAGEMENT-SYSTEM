@@ -1,0 +1,61 @@
+<?php namespace App\Http\Controllers; use Illuminate\Http\Request; use 
+App\Models\Complaint; use Illuminate\Support\Facades\Auth; class 
+ComplaintController extends Controller 
+{ public function index() 
+{ 
+$complaints = Auth::user()->complaints()->latest()->get(); return view('complaints.index', 
+compact('complaints')); 
+} public function mycomplaints() 
+{ 
+$complaints = Auth::user()->complaints()->latest()->get(); return 
+view('complaints.mycomplaints', compact('complaints')); 
+} public function create() 
+{ return view('complaints.create'); 
+} public function store(Request $request) 
+{ 
+$request->validate([ 
+'title' => 'required|string|max:255', 
+'description' => 'required|string', 
+]); 
+Complaint::create([ 
+'user_id' => Auth::id(), 
+'title' => $request->title, 
+'description' => $request->description, 
+'status' => 'pending', // default status 
+]); return redirect()->route('complaints.index') 
+->with('success', 'Complaint submitted successfully!'); 
+} public function show(Complaint $complaint) 
+{ 
+$this->authorizeComplaint($complaint); return view('complaints.show', compact('complaint')); 
+} public function edit(Complaint $complaint) 
+{ 
+$this->authorizeComplaint($complaint); return view('complaints.edit', compact('complaint')); 
+}}<?
+php use Illuminate\Support\Facades\Route; use 
+App\Http\Controllers\ComplaintController; use 
+App\Http\Controllers\ProfileController; use 
+App\Http\Controllers\AdminController; use 
+App\Http\Controllers\AdminComplaintController; 
+Route::get('/', fn() => view('welcome'))->name('welcome'); 
+require __DIR__.'/auth.php'; 
+Route::middleware(['auth'])->group(function () { 
+Route::get('/dashboard', fn() => redirect()->route('complaints.index'))->name('dashboard'); 
+Route::resource('complaints', ComplaintController::class); 
+Route::get('/my-complaints', [ComplaintController::class, 'myComplaints'])->name('complaints.my'); 
+Route::prefix('profile')->name('profile.')->group(function () { 
+Route::get('/', [ProfileController::class, 'show'])->name('show'); 
+Route::get('/edit', [ProfileController::class, 'edit'])->name('edit'); 
+Route::patch('/update', [ProfileController::class, 'update'])->name('update'); 
+Route::delete('/delete', [ProfileController::class, 'destroy'])->name('destroy'); 
+}); 
+}); 
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () { 
+Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard'); 
+Route::get('/users', [AdminController::class, 'users'])->name('users.index'); 
+Route::get('/users/{id}', [AdminController::class, 'showUser'])->name('users.show'); 
+Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])->name('users.destroy'); 
+Route::resource('complaints', AdminComplaintController::class)->except(['create', 'store']); 
+Route::get('complaints/{complaint}/reply', [AdminComplaintController::class, 'reply'])->name('complaints.reply'); 
+Route::post('complaints/{complaint}/reply', [AdminComplaintController::class, 'sendReply'])- 
+>name('complaints.sendReply'); 
+});
